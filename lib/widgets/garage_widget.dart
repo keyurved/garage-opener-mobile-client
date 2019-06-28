@@ -104,21 +104,41 @@ class _GarageWidgetState extends State<GarageWidget> {
           Text(
             "Garage ${garage.garageNum} is ${garage.getGarageStatus()}.",
           ),
-          FlatButton(
-            child: Text(
-              garage.state == GarageState.CLOSED ? 'Open' : 'Close',
-            ),
-            onPressed: _toggleGarage,
-          )
+          Padding(
+              padding: EdgeInsets.fromLTRB(10.0, 45.0, 10.0, 0.0),
+              child: SizedBox(
+                  height: 40.0,
+                  child: new RaisedButton(
+                    elevation: 5.0,
+                    shape: new RoundedRectangleBorder(
+                        borderRadius: new BorderRadius.circular(30.0)),
+                    color: Colors.blue,
+                    child: Text(
+                      garage.state == GarageState.CLOSED ? 'Open' : 'Close',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    onPressed: _toggleGarage,
+                  )))
         ],
       );
     }
     return ListView(children: <Widget>[
       Text(_error, style: TextStyle(color: Colors.red)),
-      RaisedButton(
-        child: Text('Refresh'),
-        onPressed: _getGarageStatus,
-      )
+      Padding(
+          padding: EdgeInsets.fromLTRB(10.0, 45.0, 10.0, 0.0),
+          child: SizedBox(
+              height: 40.0,
+              child: new RaisedButton(
+                elevation: 5.0,
+                shape: new RoundedRectangleBorder(
+                    borderRadius: new BorderRadius.circular(30.0)),
+                color: Colors.blue,
+                child: Text(
+                  'Refresh',
+                  style: TextStyle(color: Colors.white),
+                ),
+                onPressed: _getGarageStatus,
+              )))
     ]);
   }
 }
