@@ -123,7 +123,7 @@ class _GarageWidgetState extends State<GarageWidget> {
       );
     }
     return ListView(children: <Widget>[
-      Text(_error, style: TextStyle(color: Colors.red)),
+      Center(child: Text(_error, style: TextStyle(color: Colors.red))),
       Padding(
           padding: EdgeInsets.fromLTRB(10.0, 45.0, 10.0, 0.0),
           child: SizedBox(

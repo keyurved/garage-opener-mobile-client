@@ -27,25 +27,35 @@ class _HomePageState extends State<HomePage> {
 
   _constructBody() {
     final idToken = widget.auth.getIdToken();
-
-        return new GarageWidget(garageId: 1,
-        idToken: idToken,
-        );
+    return new Column(
+      children: <Widget>[
+        Expanded(
+          child: GarageWidget(
+            garageId: 1,
+            idToken: idToken,
+          ),
+        ),
+        Expanded(
+            child: GarageWidget(
+          garageId: 2,
+          idToken: idToken,
+        ))
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return new Scaffold(
         appBar: new AppBar(
-      title: new Text('Garage Opener'),
-      actions: <Widget>[
-        new FlatButton(
-            child: new Text('Logout',
-                style: new TextStyle(fontSize: 17.0, color: Colors.white)),
-            onPressed: _signOut)
-      ],
-    ),
-    body: _constructBody()
-    );
+          title: new Text('Garage Opener'),
+          actions: <Widget>[
+            new FlatButton(
+                child: new Text('Logout',
+                    style: new TextStyle(fontSize: 17.0, color: Colors.white)),
+                onPressed: _signOut)
+          ],
+        ),
+        body: _constructBody());
   }
 }
