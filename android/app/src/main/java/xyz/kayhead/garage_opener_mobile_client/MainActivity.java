@@ -1,4 +1,4 @@
-package com.example.garage_opener_mobile_client;
+package xyz.kayhead.garage_opener_mobile_client;
 
 import android.os.Bundle;
 import io.flutter.app.FlutterActivity;

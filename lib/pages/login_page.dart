@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
 import 'package:garage_opener_mobile_client/services/authentication.dart';
+import 'package:garage_opener_mobile_client/services/shared_preferences.dart';
+import 'package:garage_opener_mobile_client/globals.dart' as globals;
 
 class LoginPage extends StatefulWidget {
   LoginPage({this.auth, this.onSignedIn});
@@ -17,7 +21,10 @@ class _LoginPageState extends State<LoginPage> {
   String _email = "";
   String _password = "";
   String _errorMessage = "";
+  String _server = "";
 
+  bool _rememberUser = null;
+  bool _rememberPassword = null;
   bool _isLoading = false;
   bool _isIos = false;
 
@@ -32,94 +39,211 @@ class _LoginPageState extends State<LoginPage> {
         body: Stack(
           children: <Widget>[
             _showBody(),
-            _showCircularProgress(),
           ],
         ));
   }
 
-  Widget _showCircularProgress() {
-    if (_isLoading) {
-      return Center(child: CircularProgressIndicator());
-    }
-    return Container(height: 0.0, width: 0.0);
-  }
-
-  // TODO change to logo
   Widget _showHeader() {
     return new Padding(
-      padding: const EdgeInsets.fromLTRB(0, 0, 0, 20),
-      child: Text.rich(
-      TextSpan(
-        children: <TextSpan>[
-          TextSpan(text: 'Login', style: TextStyle(fontWeight: FontWeight.bold))
-        ],
-      ),
-      textAlign: TextAlign.center,
-      textScaleFactor: 3.0,
-    ));
+        padding: const EdgeInsets.fromLTRB(0, 0, 0, 20),
+        child: Text.rich(
+          TextSpan(
+            children: <TextSpan>[
+              TextSpan(
+                  text: 'Login', style: TextStyle(fontWeight: FontWeight.bold))
+            ],
+          ),
+          textAlign: TextAlign.center,
+          textScaleFactor: 3.0,
+        ));
   }
 
-  Widget _showEmailInput() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0.0, 0.0, 0.0, 0.0),
-      child: new TextFormField(
-        maxLines: 1,
-        keyboardType: TextInputType.emailAddress,
-        autofocus: false,
-        decoration: new InputDecoration(
-            hintText: 'Email',
-            icon: new Icon(
-              Icons.mail,
-              color: Colors.grey,
-            )),
-        validator: (value) {
-          if (value.isEmpty) {
-            setState(() {
-              _isLoading = false;
-            });
-            return 'Email can\'t be empty';
-          }
-        },
-        onSaved: (value) => _email = value,
-      ),
+  Future<List<Object>> _getUserInfo() async {
+    return [
+      await SharedPreferencesHelper.getServerUrl(),
+      await SharedPreferencesHelper.getUsername(),
+      await SharedPreferencesHelper.getPassword(),
+      await SharedPreferencesHelper.getRememberUser(),
+      await SharedPreferencesHelper.getRememberPassword()
+    ];
+  }
+
+  TextFormField buildTextFormField(
+      {initialValue, hint, obscure, keyboardType, icon, validator, onSaved}) {
+    return new TextFormField(
+      initialValue: initialValue,
+      maxLines: 1,
+      keyboardType: keyboardType,
+      autofocus: false,
+      obscureText: obscure,
+      decoration: new InputDecoration(labelText: hint, icon: icon),
+      validator: validator,
+      onSaved: onSaved,
     );
   }
 
-  Widget _showPasswordInput() {
+  Widget _buildUserFormItem(
+      BuildContext context, int index, AsyncSnapshot snapshot) {
+    TextFormField field;
+
+    if (index == 0) {
+      field = buildTextFormField(
+          initialValue: snapshot.data[index] as String,
+          hint: 'Server',
+          obscure: false,
+          keyboardType: TextInputType.url,
+          icon: new Icon(
+            Icons.cloud,
+            color: Colors.grey,
+          ),
+          validator: (value) {
+            if (value.isEmpty) {
+              setState(() {
+                _isLoading = false;
+              });
+              return 'Server can\'t be empty';
+            }
+          },
+          onSaved: (value) => _server = value);
+    } else if (index == 1) {
+      field = buildTextFormField(
+          initialValue: snapshot.data[index] as String,
+          hint: 'Email',
+          keyboardType: TextInputType.emailAddress,
+          obscure: false,
+          icon: new Icon(
+            Icons.mail,
+            color: Colors.grey,
+          ),
+          validator: (value) {
+            if (value.isEmpty) {
+              setState(() {
+                _isLoading = false;
+              });
+              return 'Email can\'t be empty';
+            }
+          },
+          onSaved: (value) => _email = value);
+    } else if (index == 2) {
+      field = buildTextFormField(
+          initialValue: snapshot.data[index] as String,
+          hint: 'Password',
+          keyboardType: null,
+          obscure: true,
+          icon: new Icon(
+            Icons.lock,
+            color: Colors.grey,
+          ),
+          validator: (value) {
+            if (value.isEmpty) {
+              setState(() {
+                _isLoading = false;
+              });
+              return 'Password can\'t be empty';
+            }
+          },
+          onSaved: (value) => _password = value);
+    } else if (index == 3) {
+      _rememberUser =
+          _rememberUser == null ? snapshot.data[index] as bool : _rememberUser;
+      return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(
+              'Remember User',
+              textScaleFactor: 1,
+            ),
+            Checkbox(
+                value: _rememberUser,
+                onChanged: (value) {
+                  setState(() {
+                    _rememberUser = value;
+                  });
+                })
+          ]);
+    } else if (index == 4) {
+      _rememberPassword = _rememberPassword == null
+          ? snapshot.data[index] as bool
+          : _rememberPassword;
+      return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(
+              'Remember Password',
+              textScaleFactor: 1,
+            ),
+            Checkbox(
+                value: _rememberPassword,
+                onChanged: (value) {
+                  setState(() {
+                    _rememberPassword = value;
+                  });
+                })
+          ]);
+    }
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(0.0, 15.0, 0.0, 15.0),
-      child: new TextFormField(
-        maxLines: 1,
-        obscureText: true,
-        autofocus: false,
-        decoration: new InputDecoration(
-            hintText: 'Password',
-            icon: new Icon(
-              Icons.lock,
-              color: Colors.grey,
-            )),
-        validator: (value) {
-          if (value.isEmpty) {
-            setState(() {
-              _isLoading = false;
-            });
-            return 'Password can\'t be empty';
-          }
-        },
-        onSaved: (value) => _password = value,
-      ),
-    );
+        padding: const EdgeInsets.fromLTRB(0.0, 5.0, 0.0, 5.0), child: field);
   }
+
+  Widget _showInputs() {
+    return FutureBuilder(
+        future: _getUserInfo(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return Center(child: CircularProgressIndicator());
+          }
+          return ListView.builder(
+              shrinkWrap: true,
+              itemCount: snapshot.data.length,
+              itemBuilder: (context, index) =>
+                  _buildUserFormItem(context, index, snapshot));
+        });
+  }
+
+/*
+  Widget _showRememberChecks() {
+    return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(
+            'Remember User',
+            textScaleFactor: 1,
+          ),
+          Checkbox(
+              value: _rememberUser,
+              onChanged: (value) {
+                setState(() {
+                  _rememberUser = value;
+                });
+              }),
+          Text(
+            'Remember Password',
+            textScaleFactor: 1,
+          ),
+          Checkbox(
+              value: _rememberPassword,
+              onChanged: (value) {
+                setState(() {
+                  _rememberPassword = value;
+                });
+              })
+        ]);
+  }
+  */
 
   Widget _showPrimaryButton() {
     return new Padding(
-        padding: EdgeInsets.fromLTRB(0.0, 45.0, 0.0, 0.0),
+        padding: EdgeInsets.fromLTRB(10.0, 10.0, 10.0, 0.0),
         child: SizedBox(
           height: 40.0,
           child: new RaisedButton(
             elevation: 5.0,
             shape: new RoundedRectangleBorder(
-                borderRadius: new BorderRadius.circular(30.0)),
+                borderRadius: new BorderRadius.circular(10.0)),
             color: Colors.blue,
             child: new Text('Login',
                 style: new TextStyle(fontSize: 20.0, color: Colors.white)),
@@ -131,16 +255,15 @@ class _LoginPageState extends State<LoginPage> {
   Widget _showErrorMessage() {
     if (_errorMessage.length > 0 && _errorMessage != null) {
       return new Padding(
-        padding: EdgeInsets.fromLTRB(40, 0.0, 0, 0),
-        child:
-        Text(
-        _errorMessage,
-        style: TextStyle(
-            fontSize: 13.0,
-            color: Colors.red,
-            height: 1.0,
-            fontWeight: FontWeight.bold),
-      ));
+          padding: EdgeInsets.fromLTRB(40, 0.0, 0, 0),
+          child: Text(
+            _errorMessage,
+            style: TextStyle(
+                fontSize: 13.0,
+                color: Colors.red,
+                height: 1.0,
+                fontWeight: FontWeight.bold),
+          ));
     } else {
       return new Container(
         height: 0.0,
@@ -149,25 +272,28 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _showBody() {
-    return new Container(
-        padding: EdgeInsets.all(16.0),
-        child: new Form(
-          key: _formKey,
-          child: new ListView(
-            shrinkWrap: true,
-            children: <Widget>[
-              _showHeader(),
-              new ListView( 
-                shrinkWrap: true,
-                children: <Widget>[
-              _showErrorMessage(),
-              _showEmailInput(),
-              _showPasswordInput(),
-              _showPrimaryButton(),
-              ],)
-            ],
-          ),
-        ));
+    if (!_isLoading) {
+      return new Container(
+          padding: EdgeInsets.all(16.0),
+          child: new Form(
+            key: _formKey,
+            child: new ListView(
+              shrinkWrap: true,
+              children: <Widget>[
+                _showHeader(),
+                new ListView(
+                  shrinkWrap: true,
+                  children: <Widget>[
+                    _showErrorMessage(),
+                    _showInputs(),
+                    _showPrimaryButton(),
+                  ],
+                )
+              ],
+            ),
+          ));
+    } 
+    return Center(child: CircularProgressIndicator());
   }
 
   bool _validateAndSave() {
@@ -189,12 +315,40 @@ class _LoginPageState extends State<LoginPage> {
       try {
         userId = await widget.auth.signIn(_email, _password);
         print('Signed in: $userId');
+        String idToken = await widget.auth.getIdToken();
 
-        setState(() {
-          _isLoading = false;
-        });
-        if (userId.length > 0 && userId != null) {
-          widget.onSignedIn();
+        final response = await http.post('$_server/login', headers: {
+          'X-Auth': idToken
+        }).timeout(new Duration(seconds: globals.TIMEOUT));
+
+        await SharedPreferencesHelper.setRememberUser(_rememberUser);
+        await SharedPreferencesHelper.setRememberPassword(_rememberPassword);
+        await SharedPreferencesHelper.setServerUrl(_server);
+
+        if (_rememberUser) {
+          await SharedPreferencesHelper.setUsername(_email);
+        } else {
+          await SharedPreferencesHelper.setUsername("");
+        }
+
+        if (_rememberPassword) {
+          await SharedPreferencesHelper.setPassword(_password);
+        } else {
+          await SharedPreferencesHelper.setPassword("");
+        }
+
+        if (response.statusCode == 200) {
+          setState(() {
+            _isLoading = false;
+          });
+          if (userId.length > 0 && userId != null) {
+            widget.onSignedIn();
+          }
+        } else {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'Unknown email or password';
+          });
         }
       } catch (e) {
         print('Error: $e');

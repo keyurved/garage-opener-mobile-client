@@ -8,20 +8,12 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:347415554425:android:fb64c68684c9d71a",
+        "mobilesdk_app_id": "1:347415554425:android:f225b1a36298c786",
         "android_client_info": {
-          "package_name": "com.example.garage_opener_mobile_client"
+          "package_name": "xyz.kayhead.garage_opener_mobile_client"
         }
       },
       "oauth_client": [
-        {
-          "client_id": "347415554425-iqghacncc1lkn9spt548acqi8m0o4k1a.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.example.garage_opener_mobile_client",
-            "certificate_hash": "8d2fbf8e8e644d2b528c6457cb3bd2f71b799395"
-          }
-        },
         {
           "client_id": "347415554425-t9l68fivsk6cilr174vtsqinolmefj7h.apps.googleusercontent.com",
           "client_type": 3
