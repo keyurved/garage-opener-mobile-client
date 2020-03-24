@@ -72,3 +72,5 @@ assets/config/serverConfig.json
 android/key.properties
 android/private_key.pepk
 android/app/google-services.json
+.flutter-plugins-dependencies
+ios/Flutter/flutter_export_environment.sh

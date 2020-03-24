@@ -23,8 +23,8 @@ class _LoginPageState extends State<LoginPage> {
   String _errorMessage = "";
   String _server = "";
 
-  bool _rememberUser = null;
-  bool _rememberPassword = null;
+  bool _rememberUser;
+  bool _rememberPassword;
   bool _isLoading = false;
   bool _isIos = false;
 
@@ -104,7 +104,15 @@ class _LoginPageState extends State<LoginPage> {
               return 'Server can\'t be empty';
             }
           },
-          onSaved: (value) => _server = value);
+          onSaved: (value) {
+            String _val = value.toString();
+            if (!_val.startsWith('http')) {
+              _server = 'http://$_val';
+            } else {
+              _server = _val;
+            }
+          }
+      );
     } else if (index == 1) {
       field = buildTextFormField(
           initialValue: snapshot.data[index] as String,
@@ -123,7 +131,7 @@ class _LoginPageState extends State<LoginPage> {
               return 'Email can\'t be empty';
             }
           },
-          onSaved: (value) => _email = value);
+          onSaved: (value) => _email = value.toString().trim());
     } else if (index == 2) {
       field = buildTextFormField(
           initialValue: snapshot.data[index] as String,
@@ -142,7 +150,7 @@ class _LoginPageState extends State<LoginPage> {
               return 'Password can\'t be empty';
             }
           },
-          onSaved: (value) => _password = value);
+          onSaved: (value) => _password = value.toString().trim());
     } else if (index == 3) {
       _rememberUser =
           _rememberUser == null ? snapshot.data[index] as bool : _rememberUser;
@@ -306,9 +314,8 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _validateAndSubmit() async {
-    setState(() {
-      _errorMessage = "";
-      _isLoading = true;
+    setState(() { _errorMessage = "";
+           _isLoading = true;
     });
     if (_validateAndSave()) {
       String userId = "";
@@ -321,29 +328,29 @@ class _LoginPageState extends State<LoginPage> {
           'X-Auth': idToken
         }).timeout(new Duration(seconds: globals.TIMEOUT));
 
-        await SharedPreferencesHelper.setRememberUser(_rememberUser);
-        await SharedPreferencesHelper.setRememberPassword(_rememberPassword);
-        await SharedPreferencesHelper.setServerUrl(_server);
-
-        if (_rememberUser) {
-          await SharedPreferencesHelper.setUsername(_email);
-        } else {
-          await SharedPreferencesHelper.setUsername("");
-        }
-
-        if (_rememberPassword) {
-          await SharedPreferencesHelper.setPassword(_password);
-        } else {
-          await SharedPreferencesHelper.setPassword("");
-        }
-
         if (response.statusCode == 200) {
-          setState(() {
-            _isLoading = false;
-          });
-          if (userId.length > 0 && userId != null) {
-            widget.onSignedIn();
+          await SharedPreferencesHelper.setRememberUser(_rememberUser);
+          await SharedPreferencesHelper.setRememberPassword(_rememberPassword);
+          await SharedPreferencesHelper.setServerUrl(_server);
+
+          if (_rememberUser) {
+            await SharedPreferencesHelper.setUsername(_email);
+          } else {
+            await SharedPreferencesHelper.setUsername("");
           }
+
+          if (_rememberPassword) {
+            await SharedPreferencesHelper.setPassword(_password);
+          } else {
+            await SharedPreferencesHelper.setPassword("");
+          }
+
+            setState(() {
+              _isLoading = false;
+            });
+            if (userId.length > 0 && userId != null) {
+              widget.onSignedIn();
+            }
         } else {
           setState(() {
             _isLoading = false;
@@ -352,6 +359,11 @@ class _LoginPageState extends State<LoginPage> {
         }
       } catch (e) {
         print('Error: $e');
+        await SharedPreferencesHelper.setRememberUser(false);
+        await SharedPreferencesHelper.setRememberPassword(false);
+        await SharedPreferencesHelper.setServerUrl("");
+        await SharedPreferencesHelper.setUsername("");
+        await SharedPreferencesHelper.setPassword("");
         setState(() {
           _isLoading = false;
           _errorMessage = 'Unknown email or password';
