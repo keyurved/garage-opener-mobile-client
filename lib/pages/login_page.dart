@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:garage_opener_mobile_client/services/authentication.dart';
@@ -69,7 +70,14 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   TextFormField buildTextFormField(
-      {initialValue, hint, obscure, keyboardType, icon, validator, onSaved}) {
+      {initialValue,
+      hint,
+      obscure,
+      keyboardType,
+      icon,
+      validator,
+      onSaved,
+      inputFormatters}) {
     return new TextFormField(
       initialValue: initialValue,
       maxLines: 1,
@@ -79,6 +87,7 @@ class _LoginPageState extends State<LoginPage> {
       decoration: new InputDecoration(labelText: hint, icon: icon),
       validator: validator,
       onSaved: onSaved,
+      inputFormatters: inputFormatters,
     );
   }
 
@@ -105,14 +114,13 @@ class _LoginPageState extends State<LoginPage> {
             }
           },
           onSaved: (value) {
-            String _val = value.toString();
-            if (!_val.startsWith('http')) {
-              _server = 'http://$_val';
+            String val = value.toString();
+            if (!val.contains(new RegExp(r'^[a-zA-Z]+:\/\/'))) {
+              _server = 'http://$val';
             } else {
-              _server = _val;
+              _server = val;
             }
-          }
-      );
+          });
     } else if (index == 1) {
       field = buildTextFormField(
           initialValue: snapshot.data[index] as String,
@@ -300,7 +308,7 @@ class _LoginPageState extends State<LoginPage> {
               ],
             ),
           ));
-    } 
+    }
     return Center(child: CircularProgressIndicator());
   }
 
@@ -313,49 +321,71 @@ class _LoginPageState extends State<LoginPage> {
     return false;
   }
 
+  Future<bool> _doRequest(server, idToken, {count = 0}) async {
+    final response = await http.post('$server/login', headers: {
+      'X-Auth': idToken
+    }).timeout(new Duration(seconds: globals.TIMEOUT));
+
+    if (response.statusCode == 200) {
+      await SharedPreferencesHelper.setRememberUser(_rememberUser);
+      await SharedPreferencesHelper.setRememberPassword(_rememberPassword);
+      await SharedPreferencesHelper.setServerUrl(_server);
+
+      if (_rememberUser) {
+        await SharedPreferencesHelper.setUsername(_email);
+      } else {
+        await SharedPreferencesHelper.setUsername("");
+      }
+
+      if (_rememberPassword) {
+        await SharedPreferencesHelper.setPassword(_password);
+      } else {
+        await SharedPreferencesHelper.setPassword("");
+      }
+      return true;
+    } else if (response.statusCode >= 300 &&
+        response.statusCode <= 399 &&
+        count <= 3) {
+      return await this
+          ._doRequest(response.headers['location'], idToken, count: count + 1);
+    } else if (response.statusCode == 403) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Unknown email or password';
+      });
+    } else if (response.statusCode == 404) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Server not found';
+      });
+    } else if (response.statusCode >= 500 && response.statusCode <= 599) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Something went wrong with your request';
+      });
+    }
+  }
+
   void _validateAndSubmit() async {
-    setState(() { _errorMessage = "";
-           _isLoading = true;
+    setState(() {
+      _errorMessage = "";
+      _isLoading = true;
     });
     if (_validateAndSave()) {
       String userId = "";
       try {
         userId = await widget.auth.signIn(_email, _password);
-        print('Signed in: $userId');
         String idToken = await widget.auth.getIdToken();
 
-        final response = await http.post('$_server/login', headers: {
-          'X-Auth': idToken
-        }).timeout(new Duration(seconds: globals.TIMEOUT));
+        bool _success = await this._doRequest(_server, idToken);
 
-        if (response.statusCode == 200) {
-          await SharedPreferencesHelper.setRememberUser(_rememberUser);
-          await SharedPreferencesHelper.setRememberPassword(_rememberPassword);
-          await SharedPreferencesHelper.setServerUrl(_server);
-
-          if (_rememberUser) {
-            await SharedPreferencesHelper.setUsername(_email);
-          } else {
-            await SharedPreferencesHelper.setUsername("");
-          }
-
-          if (_rememberPassword) {
-            await SharedPreferencesHelper.setPassword(_password);
-          } else {
-            await SharedPreferencesHelper.setPassword("");
-          }
-
-            setState(() {
-              _isLoading = false;
-            });
-            if (userId.length > 0 && userId != null) {
-              widget.onSignedIn();
-            }
-        } else {
+        if (_success) {
           setState(() {
             _isLoading = false;
-            _errorMessage = 'Unknown email or password';
           });
+          if (userId.length > 0 && userId != null) {
+            widget.onSignedIn();
+          }
         }
       } catch (e) {
         print('Error: $e');
@@ -366,7 +396,7 @@ class _LoginPageState extends State<LoginPage> {
         await SharedPreferencesHelper.setPassword("");
         setState(() {
           _isLoading = false;
-          _errorMessage = 'Unknown email or password';
+          _errorMessage = 'An error has occurred with your request';
         });
       }
     }
