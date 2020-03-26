@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:garage_opener_mobile_client/services/authentication.dart';
+import 'package:garage_opener_mobile_client/services/shared_preferences.dart';
 
 import 'home_page.dart';
 import 'login_page.dart';
@@ -50,10 +51,11 @@ class _RootPageState extends State<RootPage> {
   }
 
   void _onSignedOut() {
-    setState(() {
-      authStatus = AuthStatus.NOT_LOGGED_IN;
-      _userId = "";
-    });
+    SharedPreferencesHelper.setUsername("").then((val) =>
+        SharedPreferencesHelper.setPassword("").then((val) => setState(() {
+              authStatus = AuthStatus.NOT_LOGGED_IN;
+              _userId = "";
+            })));
   }
 
   Widget _buildWaitingScreen() {
