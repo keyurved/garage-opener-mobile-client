@@ -322,14 +322,16 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<bool> _doRequest(server, idToken, {count = 0}) async {
-    final response = await http.post('$server/login', headers: {
+    Uri uri = Uri.parse(server);
+
+    final response = await http.post(uri.toString(), headers: {
       'X-Auth': idToken
     }).timeout(new Duration(seconds: globals.TIMEOUT));
 
     if (response.statusCode == 200) {
       await SharedPreferencesHelper.setRememberUser(_rememberUser);
       await SharedPreferencesHelper.setRememberPassword(_rememberPassword);
-      await SharedPreferencesHelper.setServerUrl(_server);
+      await SharedPreferencesHelper.setServerUrl('${uri.origin}');
 
       if (_rememberUser) {
         await SharedPreferencesHelper.setUsername(_email);
@@ -377,7 +379,7 @@ class _LoginPageState extends State<LoginPage> {
         userId = await widget.auth.signIn(_email, _password);
         String idToken = await widget.auth.getIdToken();
 
-        bool _success = await this._doRequest(_server, idToken);
+        bool _success = await this._doRequest('$_server/login', idToken);
 
         if (_success) {
           setState(() {
