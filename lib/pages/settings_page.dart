@@ -3,7 +3,7 @@ import 'package:garage_opener_mobile_client/services/authentication.dart';
 import 'package:garage_opener_mobile_client/services/shared_preferences.dart';
 
 class SettingsPage extends StatefulWidget {
-  SettingsPage({Key key, this.auth, this.onSignedOut}) : super(key: key);
+  SettingsPage({Key? key, required this.auth, required this.onSignedOut}) : super(key: key);
   final BaseAuth auth;
   final VoidCallback onSignedOut;
 
@@ -14,11 +14,10 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   final _formKey = new GlobalKey<FormState>();
   final snackBar = SnackBar(content: Text('Settings saved'));
-  String _errorMessage;
   bool _isLoading = false;
   bool _isSaving = false;
   bool _isSaved = false;
-  int _delay;
+  int _delay = 7;
 
   void _signOut() async {
     try {
@@ -32,7 +31,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<List<Object>> _getSettings() async {
     return [
       await SharedPreferencesHelper.getServerUrl(),
-      await widget.auth.getCurrentUser(),
+      await widget.auth.getCurrentUser() as Object,
       await SharedPreferencesHelper.getDelay(),
     ];
   }
@@ -63,14 +62,33 @@ class _SettingsPageState extends State<SettingsPage> {
           decoration: new InputDecoration(labelText: 'Delay'),
           obscureText: false,
           validator: (value) {
-            if (value.isEmpty) {
+            if (value == null || value.isEmpty) {
               setState(() {
                 _isLoading = false;
               });
               return 'Delay can\'t be empty';
             }
+            return null;
           },
-          onSaved: (value) => _delay = int.tryParse(value) ?? 7);
+          onSaved: (value) {
+            if (value == null) {
+              _delay = 7;
+              return;
+            }
+            
+
+            int? parsed = int.tryParse(value);
+
+            if (parsed == null) {
+              _delay = 7;
+              return;
+            }
+
+            _delay = parsed;
+          });
+            
+    } else {
+      throw new ArgumentError("Invalid");
     }
     return Padding(
         padding: const EdgeInsets.fromLTRB(0.0, 5.0, 0.0, 5.0), child: field);
@@ -85,11 +103,11 @@ class _SettingsPageState extends State<SettingsPage> {
                       padding: EdgeInsets.fromLTRB(10.0, 10.0, 10.0, 0.0),
                       child: SizedBox(
                         height: 40.0,
-                        child: new RaisedButton(
+                        child: ElevatedButton(style: ElevatedButton.styleFrom(
                           elevation: 5.0,
                           shape: new RoundedRectangleBorder(
                               borderRadius: new BorderRadius.circular(10.0)),
-                          color: Colors.blue,
+                          backgroundColor: Colors.blue),
                           child: new Text('Save',
                               style: new TextStyle(
                                   fontSize: 20.0, color: Colors.white)),
@@ -104,6 +122,10 @@ class _SettingsPageState extends State<SettingsPage> {
 
   bool _validateAndSave() {
     final form = _formKey.currentState;
+    if (form == null) {
+      return false;
+    }
+
     if (form.validate()) {
       form.save();
       return true;
@@ -113,14 +135,12 @@ class _SettingsPageState extends State<SettingsPage> {
 
   void _validateAndSubmit(BuildContext context) async {
     setState(() {
-      _errorMessage = "";
       _isSaving = true;
     });
 
     if (_validateAndSave()) {
       await SharedPreferencesHelper.setDelay(_delay);
-
-      Scaffold.of(context).showSnackBar(SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Settings Saved'),
         action: SnackBarAction(
           label: 'Back',
@@ -135,10 +155,10 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _showInputs() {
-    return FutureBuilder(
+    return FutureBuilder<List<Object>>(
       future: _getSettings(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+        if (!snapshot.hasData || snapshot.data == null) {
           return Center(
             child: CircularProgressIndicator(),
           );
@@ -146,7 +166,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
         return ListView.builder(
             shrinkWrap: true,
-            itemCount: snapshot.data.length,
+            itemCount: snapshot.data!.length,
             itemBuilder: (context, index) =>
                 _buildSettingsFormItem(context, index, snapshot));
       },

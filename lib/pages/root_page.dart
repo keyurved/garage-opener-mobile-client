@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:garage_opener_mobile_client/services/authentication.dart';
 import 'package:garage_opener_mobile_client/services/shared_preferences.dart';
@@ -7,7 +6,7 @@ import 'home_page.dart';
 import 'login_page.dart';
 
 class RootPage extends StatefulWidget {
-  RootPage({this.auth});
+  RootPage({required this.auth});
 
   final BaseAuth auth;
 
@@ -23,7 +22,7 @@ enum AuthStatus {
 
 class _RootPageState extends State<RootPage> {
   AuthStatus authStatus = AuthStatus.NOT_DETERMINED;
-  String _userId = "";
+  String? _userId;
 
   @override
   void initState() {
@@ -31,7 +30,7 @@ class _RootPageState extends State<RootPage> {
     widget.auth.getCurrentUser().then((user) {
       setState(() {
         if (user != null) {
-          _userId = user?.uid;
+          _userId = user.uid;
         }
         authStatus =
             user == null ? AuthStatus.NOT_LOGGED_IN : AuthStatus.LOGGED_IN;
@@ -72,23 +71,24 @@ class _RootPageState extends State<RootPage> {
     switch (authStatus) {
       case AuthStatus.NOT_DETERMINED:
         return _buildWaitingScreen();
-        break;
       case AuthStatus.NOT_LOGGED_IN:
         return new LoginPage(
           auth: widget.auth,
           onSignedIn: _onLoggedIn,
         );
-        break;
       case AuthStatus.LOGGED_IN:
-        if (_userId.length > 0 && _userId != null) {
+        if (_userId == null) {
+          return new LoginPage(auth: widget.auth, onSignedIn: _onLoggedIn);
+        }
+
+        if (_userId!.length > 0) {
           return new HomePage(
-            userId: _userId,
+            userId: _userId!,
             auth: widget.auth,
             onSignedOut: _onSignedOut,
           );
-        } else
-          return _buildWaitingScreen();
-        break;
+        }
+        return _buildWaitingScreen();
       default:
         return _buildWaitingScreen();
     }

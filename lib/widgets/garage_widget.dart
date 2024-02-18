@@ -2,12 +2,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:garage_opener_mobile_client/entities/garage.dart';
 import 'package:garage_opener_mobile_client/globals.dart' as globals;
 
 class GarageWidget extends StatefulWidget {
-  GarageWidget({Key key, this.idToken, this.garageId, this.serverUrl, this.delay})
+  GarageWidget({required Key key, required this.idToken, required this.garageId, required this.serverUrl, required this.delay})
       : super(key: key);
   final Future<String> idToken;
   final Future<String> serverUrl;
@@ -20,8 +19,8 @@ class GarageWidget extends StatefulWidget {
 
 class GarageWidgetState extends State<GarageWidget> {
   bool _isLoading = false;
-  String _error;
-  Garage garage;
+  String? _error;
+  Garage? garage;
 
   getGarageStatus() async {
 
@@ -30,13 +29,18 @@ class GarageWidgetState extends State<GarageWidget> {
     });
 
     try {
+      Uri uri = Uri.parse('${await widget.serverUrl}/garage/${widget.garageId}');
       final response = await http
-          .get('${await widget.serverUrl}/garage/${widget.garageId}', headers: {
+          .get(uri, headers: {
         'X-Auth': await widget.idToken
       }).timeout(new Duration(seconds: globals.TIMEOUT));
 
       if (response.statusCode == 200) {
-        garage.updateFromJson(json.decode(response.body));
+        if (garage == null) {
+          garage = Garage.fromJson(json.decode(response.body));
+        } else {
+          garage!.updateFromJson(json.decode(response.body));
+        }
 
         setState(() {
           _error = null;
@@ -60,6 +64,9 @@ class GarageWidgetState extends State<GarageWidget> {
   _toggleGarage() async {
     int timeout = globals.TIMEOUT;
     int delay = await widget.delay;
+    if (garage == null) {
+      return;
+    }
 
     if (delay > timeout) {
       timeout = delay + 10;
@@ -70,21 +77,23 @@ class GarageWidgetState extends State<GarageWidget> {
 
     String url = '${await widget.serverUrl}/garage/';
 
-    if (garage.state == GarageState.CLOSED) {
+    if (garage!.state == GarageState.CLOSED) {
       url += 'open/';
     } else {
       url += 'close/';
     }
-    url += garage.garageNum.toString();
+    url += garage!.garageNum.toString();
+
+    Uri urlAsUri = Uri.parse(url);
 
   try {
-    final response = await http.post(url, headers: {
+    final response = await http.post(urlAsUri, headers: {
       'X-Auth': await widget.idToken,
       'Delay': (await widget.delay).toString()
     }).timeout(new Duration(seconds:timeout));
 
     if (response.statusCode == 200) {
-      garage.updateFromJson(json.decode(response.body));
+      garage!.updateFromJson(json.decode(response.body));
 
       if (this.mounted) {
         setState(() {
@@ -119,18 +128,19 @@ class GarageWidgetState extends State<GarageWidget> {
   }
 
   _createRaisedButton(text, onPressed) {
+    final ButtonStyle style = ElevatedButton.styleFrom(backgroundColor: Colors.blue,
+        textStyle: const TextStyle(color: Colors.white),
+        elevation: 5.0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30.0)));
+
     return Padding(
         padding: EdgeInsets.fromLTRB(10.0, 45.0, 10.0, 0.0),
         child: SizedBox(
             height: 40.0,
-            child: new RaisedButton(
-              elevation: 5.0,
-              shape: new RoundedRectangleBorder(
-                  borderRadius: new BorderRadius.circular(30.0)),
-              color: Colors.blue,
+            child: new ElevatedButton(
+              style: style,
               child: Text(
                 text,
-                style: TextStyle(color: Colors.white),
               ),
               onPressed: onPressed,
             )));
@@ -143,21 +153,13 @@ class GarageWidgetState extends State<GarageWidget> {
           child: Center(
             child: CircularProgressIndicator(),
           ));
-    } else if (_error == null) {
-      return _createRaisedButton(
-          garage.state == GarageState.CLOSED ? 'Open' : 'Close', _toggleGarage);
-    } else {
-      return _createRaisedButton('Refresh', getGarageStatus);
-    }
+    } else    return _createRaisedButton('Refresh', getGarageStatus);
+  
   }
 
   @override
   Widget build(BuildContext context) {
-    String text = _error;
-
-    if (text == null) {
-      text = "Garage ${garage.garageNum} is ${garage.getGarageStatus()}.";
-    }
+    String text = _error ?? "";
 
     return Padding(
         padding: EdgeInsets.fromLTRB(0, 40, 0, 0),

@@ -5,7 +5,7 @@ import 'package:garage_opener_mobile_client/services/shared_preferences.dart';
 import 'package:garage_opener_mobile_client/widgets/garage_widget.dart';
 
 class HomePage extends StatefulWidget {
-  HomePage({Key key, this.auth, this.userId, this.onSignedOut})
+  HomePage({Key? key, required this.auth, required this.userId, required this.onSignedOut})
       : super(key: key);
 
   final BaseAuth auth;
@@ -23,12 +23,22 @@ class _HomePageState extends State<HomePage> {
   GlobalKey<GarageWidgetState> _widget2Key = GlobalKey();
 
   Future<void> _refreshGarages() async {
-    _widget1Key.currentState.getGarageStatus();
-    _widget2Key.currentState.getGarageStatus();
+    _widget1Key.currentState?.getGarageStatus();
+    _widget2Key.currentState?.getGarageStatus();
+  }
+
+  Future<String> _getIdTokenOrLogout() async {
+    String? idToken = await widget.auth.getIdToken();
+
+    if (idToken == null) {
+      widget.onSignedOut();
+      return "";
+    }
+
+    return idToken;
   }
 
   _constructBody() {
-    final idToken = widget.auth.getIdToken();
     final Future<String> url = SharedPreferencesHelper.getServerUrl();
     final Future<int> delay = SharedPreferencesHelper.getDelay();
 
@@ -39,14 +49,14 @@ class _HomePageState extends State<HomePage> {
                 child: GarageWidget(
                     key: _widget1Key,
                     garageId: 1,
-                    idToken: idToken,
+                    idToken: _getIdTokenOrLogout(),
                     serverUrl: url,
                     delay: delay)),
             Expanded(
                 child: GarageWidget(
                     key: _widget2Key,
                     garageId: 2,
-                    idToken: idToken,
+                    idToken: _getIdTokenOrLogout(),
                     serverUrl: url,
                     delay: delay)),
           ],
@@ -97,4 +107,5 @@ class _HomePageState extends State<HomePage> {
         ),
         body: _constructBody());
   }
+
 }

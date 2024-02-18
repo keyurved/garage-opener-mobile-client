@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:garage_opener_mobile_client/services/authentication.dart';
@@ -7,7 +6,7 @@ import 'package:garage_opener_mobile_client/services/shared_preferences.dart';
 import 'package:garage_opener_mobile_client/globals.dart' as globals;
 
 class LoginPage extends StatefulWidget {
-  LoginPage({this.auth, this.onSignedIn});
+  LoginPage({required this.auth, required this.onSignedIn});
 
   final BaseAuth auth;
   final VoidCallback onSignedIn;
@@ -24,8 +23,8 @@ class _LoginPageState extends State<LoginPage> {
   String _errorMessage = "";
   String _server = "";
 
-  bool _rememberUser;
-  bool _rememberPassword;
+  bool _rememberUser = false;
+  bool _rememberPassword = false;
   bool _isLoading = false;
   bool _isIos = false;
 
@@ -160,8 +159,7 @@ class _LoginPageState extends State<LoginPage> {
           },
           onSaved: (value) => _password = value.toString().trim());
     } else if (index == 3) {
-      _rememberUser =
-          _rememberUser == null ? snapshot.data[index] as bool : _rememberUser;
+      _rememberUser = snapshot.data[index] as bool;
       return Row(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
@@ -174,14 +172,12 @@ class _LoginPageState extends State<LoginPage> {
                 value: _rememberUser,
                 onChanged: (value) {
                   setState(() {
-                    _rememberUser = value;
+                    _rememberUser = value != null ? value : false;
                   });
                 })
           ]);
     } else if (index == 4) {
-      _rememberPassword = _rememberPassword == null
-          ? snapshot.data[index] as bool
-          : _rememberPassword;
+      _rememberPassword = snapshot.data[index] as bool;
       return Row(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
@@ -194,10 +190,12 @@ class _LoginPageState extends State<LoginPage> {
                 value: _rememberPassword,
                 onChanged: (value) {
                   setState(() {
-                    _rememberPassword = value;
+                    _rememberPassword = value != null ? value : false;
                   });
                 })
           ]);
+    } else {
+      throw new ArgumentError.value(index, "Index cannot be > 4");
     }
 
     return Padding(
@@ -205,7 +203,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _showInputs() {
-    return FutureBuilder(
+    return FutureBuilder<List<Object>>(
         future: _getUserInfo(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
@@ -213,7 +211,7 @@ class _LoginPageState extends State<LoginPage> {
           }
           return ListView.builder(
               shrinkWrap: true,
-              itemCount: snapshot.data.length,
+              itemCount: snapshot.data!.length,
               itemBuilder: (context, index) =>
                   _buildUserFormItem(context, index, snapshot));
         });
@@ -256,11 +254,11 @@ class _LoginPageState extends State<LoginPage> {
         padding: EdgeInsets.fromLTRB(10.0, 10.0, 10.0, 0.0),
         child: SizedBox(
           height: 40.0,
-          child: new RaisedButton(
+          child: new ElevatedButton(style: ElevatedButton.styleFrom(
             elevation: 5.0,
             shape: new RoundedRectangleBorder(
                 borderRadius: new BorderRadius.circular(10.0)),
-            color: Colors.blue,
+            backgroundColor: Colors.blue),
             child: new Text('Login',
                 style: new TextStyle(fontSize: 20.0, color: Colors.white)),
             onPressed: _validateAndSubmit,
@@ -269,7 +267,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _showErrorMessage() {
-    if (_errorMessage.length > 0 && _errorMessage != null) {
+    if (_errorMessage.length > 0) {
       return new Padding(
           padding: EdgeInsets.fromLTRB(40, 0.0, 0, 0),
           child: Text(
@@ -314,6 +312,10 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _validateAndSave() {
     final form = _formKey.currentState;
+    if (form == null) {
+      return false;
+    }
+
     if (form.validate()) {
       form.save();
       return true;
@@ -324,7 +326,7 @@ class _LoginPageState extends State<LoginPage> {
   Future<bool> _doRequest(server, idToken, {count = 0}) async {
     Uri uri = Uri.parse(server);
 
-    final response = await http.post(uri.toString(), headers: {
+    final response = await http.post(uri, headers: {
       'X-Auth': idToken
     }).timeout(new Duration(seconds: globals.TIMEOUT));
 
@@ -333,13 +335,13 @@ class _LoginPageState extends State<LoginPage> {
       await SharedPreferencesHelper.setRememberPassword(_rememberPassword);
       await SharedPreferencesHelper.setServerUrl('${uri.origin}');
 
-      if (_rememberUser) {
+      if (_rememberUser!) {
         await SharedPreferencesHelper.setUsername(_email);
       } else {
         await SharedPreferencesHelper.setUsername("");
       }
 
-      if (_rememberPassword) {
+      if (_rememberPassword!) {
         await SharedPreferencesHelper.setPassword(_password);
       } else {
         await SharedPreferencesHelper.setPassword("");
@@ -366,6 +368,8 @@ class _LoginPageState extends State<LoginPage> {
         _errorMessage = 'Something went wrong with your request';
       });
     }
+
+    return false;
   }
 
   void _validateAndSubmit() async {
@@ -377,7 +381,10 @@ class _LoginPageState extends State<LoginPage> {
       String userId = "";
       try {
         userId = await widget.auth.signIn(_email, _password);
-        String idToken = await widget.auth.getIdToken();
+        String? idToken = await widget.auth.getIdToken();
+        if (idToken == null) {
+          throw new Exception("Unable to login");
+        }
 
         bool _success = await this._doRequest('$_server/login', idToken);
 
@@ -385,7 +392,7 @@ class _LoginPageState extends State<LoginPage> {
           setState(() {
             _isLoading = false;
           });
-          if (userId.length > 0 && userId != null) {
+          if (userId.length > 0) {
             widget.onSignedIn();
           }
         }

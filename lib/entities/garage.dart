@@ -4,7 +4,7 @@ class Garage {
   int garageNum;
   GarageState state;
 
-  Garage({this.garageNum, this.state});
+  Garage({required this.garageNum, this.state = GarageState.CLOSED});
 
   String getGarageStatus() {
     if (state == GarageState.OPEN) {
